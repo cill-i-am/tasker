@@ -26,16 +26,18 @@ export const Route = createFileRoute('/demo/table')({
 });
 
 declare module '@tanstack/react-table' {
+  // biome-ignore lint/nursery/useConsistentTypeDefinitions: Module augmentation prefers interfaces
   interface FilterFns {
     fuzzy: FilterFn<unknown>;
   }
+  // biome-ignore lint/nursery/useConsistentTypeDefinitions: Module augmentation prefers interfaces
   interface FilterMeta {
     itemRank: RankingInfo;
   }
 }
 
 // Define a custom fuzzy filter function that will apply ranking info to rows (using match-sorter utils)
-const fuzzyFilter: FilterFn<any> = (row, columnId, value, addMeta) => {
+const fuzzyFilter: FilterFn<unknown> = (row, columnId, value, addMeta) => {
   // Rank the item
   const itemRank = rankItem(row.getValue(columnId), value);
 
@@ -49,15 +51,16 @@ const fuzzyFilter: FilterFn<any> = (row, columnId, value, addMeta) => {
 };
 
 // Define a custom fuzzy sort function that will sort by rank if the row has ranking information
-const fuzzySort: SortingFn<any> = (rowA, rowB, columnId) => {
+const fuzzySort: SortingFn<unknown> = (rowA, rowB, columnId) => {
   let dir = 0;
 
   // Only sort by rank if the column has ranking information
   if (rowA.columnFiltersMeta[columnId]) {
-    dir = compareItems(
-      rowA.columnFiltersMeta[columnId]?.itemRank!,
-      rowB.columnFiltersMeta[columnId]?.itemRank!
-    );
+    const a = rowA.columnFiltersMeta[columnId]?.itemRank;
+    const b = rowB.columnFiltersMeta[columnId]?.itemRank;
+    if (a && b) {
+      dir = compareItems(a, b);
+    }
   }
 
   // Provide an alphanumeric fallback for when the item ranks are equal
@@ -72,7 +75,7 @@ function TableDemo() {
   );
   const [globalFilter, setGlobalFilter] = React.useState('');
 
-  const columns = React.useMemo<ColumnDef<Person, any>[]>(
+  const columns = React.useMemo<ColumnDef<Person, unknown>[]>(
     () => [
       {
         accessorKey: 'id',
@@ -103,8 +106,14 @@ function TableDemo() {
     []
   );
 
-  const [data, setData] = React.useState<Person[]>(() => makeData(5000));
-  const refreshData = () => setData((_old) => makeData(50_000)); //stress test
+  const DEFAULT_ROWS = 5000;
+  const STRESS_ROWS = 50_000;
+  // biome-ignore lint/style/noMagicNumbers: This static list is intentional for UX presets
+  const PAGE_SIZES = [10, 20, 30, 40, 50] as const;
+  const [data, setData] = React.useState<Person[]>(() =>
+    makeData(DEFAULT_ROWS)
+  );
+  const refreshData = () => setData((_old) => makeData(STRESS_ROWS)); //stress test
 
   const table = useReactTable({
     data,
@@ -129,14 +138,13 @@ function TableDemo() {
   });
 
   //apply the fuzzy sort if the fullName column is being filtered
+  const isFullNameFiltered =
+    table.getState().columnFilters[0]?.id === 'fullName';
   React.useEffect(() => {
-    if (
-      table.getState().columnFilters[0]?.id === 'fullName' &&
-      table.getState().sorting[0]?.id !== 'fullName'
-    ) {
+    if (isFullNameFiltered && table.getState().sorting[0]?.id !== 'fullName') {
       table.setSorting([{ id: 'fullName', desc: false }]);
     }
-  }, [table.getState().columnFilters[0]?.id]);
+  }, [isFullNameFiltered, table.setSorting, table.getState]);
 
   return (
     <div className="min-h-screen bg-gray-900 p-6">
@@ -222,6 +230,7 @@ function TableDemo() {
           className="rounded-md bg-gray-800 px-3 py-1 hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
           disabled={!table.getCanPreviousPage()}
           onClick={() => table.setPageIndex(0)}
+          type="button"
         >
           {'<<'}
         </button>
@@ -229,6 +238,7 @@ function TableDemo() {
           className="rounded-md bg-gray-800 px-3 py-1 hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
           disabled={!table.getCanPreviousPage()}
           onClick={() => table.previousPage()}
+          type="button"
         >
           {'<'}
         </button>
@@ -236,6 +246,7 @@ function TableDemo() {
           className="rounded-md bg-gray-800 px-3 py-1 hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
           disabled={!table.getCanNextPage()}
           onClick={() => table.nextPage()}
+          type="button"
         >
           {'>'}
         </button>
@@ -243,6 +254,7 @@ function TableDemo() {
           className="rounded-md bg-gray-800 px-3 py-1 hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
           disabled={!table.getCanNextPage()}
           onClick={() => table.setPageIndex(table.getPageCount() - 1)}
+          type="button"
         >
           {'>>'}
         </button>
@@ -272,7 +284,7 @@ function TableDemo() {
           }}
           value={table.getState().pagination.pageSize}
         >
-          {[10, 20, 30, 40, 50].map((pageSize) => (
+          {PAGE_SIZES.map((pageSize) => (
             <option key={pageSize} value={pageSize}>
               Show {pageSize}
             </option>
@@ -286,12 +298,14 @@ function TableDemo() {
         <button
           className="rounded-md bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700"
           onClick={() => rerender()}
+          type="button"
         >
           Force Rerender
         </button>
         <button
           className="rounded-md bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700"
           onClick={() => refreshData()}
+          type="button"
         >
           Refresh Data
         </button>
@@ -310,12 +324,12 @@ function TableDemo() {
   );
 }
 
-function Filter({ column }: { column: Column<any, unknown> }) {
+function Filter({ column }: { column: Column<unknown, unknown> }) {
   const columnFilterValue = column.getFilterValue();
 
   return (
     <DebouncedInput
-      className="w-full rounded-md border border-gray-600 bg-gray-700 px-2 py-1 text-white outline-none focus:border-transparent focus:ring-2 focus:ring-blue-500"
+      className="w-full rounded-lg border border-gray-600 bg-gray-700 px-2 py-1 text-white outline-none focus:border-transparent focus:ring-2 focus:ring-blue-500"
       onChange={(value) => column.setFilterValue(value)}
       placeholder={'Search...'}
       type="text"
@@ -347,7 +361,7 @@ function DebouncedInput({
     }, debounce);
 
     return () => clearTimeout(timeout);
-  }, [value]);
+  }, [value, debounce, onChange]);
 
   return (
     <input

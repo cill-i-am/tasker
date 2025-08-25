@@ -1,13 +1,16 @@
 import { createRouter as createTanstackRouter } from '@tanstack/react-router';
 import { setupRouterSsrQueryIntegration } from '@tanstack/react-router-ssr-query';
-import * as TanstackQuery from './integrations/tanstack-query/root-provider';
+import {
+  getContext as getTanstackQueryContext,
+  Provider as TanstackQueryProvider,
+} from './integrations/tanstack-query/root-provider';
 
 // Import the generated route tree
 import { routeTree } from './routeTree.gen';
 
 // Create a new router instance
 export const createRouter = () => {
-  const rqContext = TanstackQuery.getContext();
+  const rqContext = getTanstackQueryContext();
 
   const router = createTanstackRouter({
     routeTree,
@@ -15,9 +18,9 @@ export const createRouter = () => {
     defaultPreload: 'intent',
     Wrap: (props: { children: React.ReactNode }) => {
       return (
-        <TanstackQuery.Provider {...rqContext}>
+        <TanstackQueryProvider {...rqContext}>
           {props.children}
-        </TanstackQuery.Provider>
+        </TanstackQueryProvider>
       );
     },
   });
@@ -32,6 +35,7 @@ export const createRouter = () => {
 
 // Register the router instance for type safety
 declare module '@tanstack/react-router' {
+  // biome-ignore lint/nursery/useConsistentTypeDefinitions: External module augmentation uses interface
   interface Register {
     router: ReturnType<typeof createRouter>;
   }

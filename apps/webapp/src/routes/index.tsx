@@ -12,7 +12,9 @@ function App() {
         <img
           alt="logo"
           className="pointer-events-none h-[40vmin] animate-[spin_20s_linear_infinite]"
+          height={400}
           src={logo}
+          width={400}
         />
         <p>
           Edit <code>src/routes/index.tsx</code> and save to reload.

@@ -40,15 +40,17 @@ export const Route = createFileRoute('/demo/start/server-funcs')({
 
 function Home() {
   const router = useRouter();
-  let todos = Route.useLoaderData();
+  const todos = Route.useLoaderData();
 
   const [todo, setTodo] = useState('');
 
   const submitTodo = useCallback(async () => {
-    todos = await addTodo({ data: todo });
+    const newTodos = await addTodo({ data: todo });
     setTodo('');
     router.invalidate();
-  }, [addTodo, todo]);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const _updated = newTodos; // avoid mutating outer scope variable
+  }, [router, todo]);
 
   return (
     <div
@@ -87,6 +89,7 @@ function Home() {
             className="rounded-lg bg-blue-500 px-4 py-3 font-bold text-white transition-colors hover:bg-blue-600 disabled:cursor-not-allowed disabled:bg-blue-500/50"
             disabled={todo.trim().length === 0}
             onClick={submitTodo}
+            type="button"
           >
             Add todo
           </button>

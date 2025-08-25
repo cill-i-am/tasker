@@ -3,5 +3,12 @@
   "extends": ["ultracite"],
   "files": {
     "includes": ["**/*", "!**/src/routeTree.gen.ts", "!**/tsconfig.json"]
+  },
+  "linter": {
+    "rules": {
+      "performance": {
+        "noImgElement": "off"
+      }
+    }
   }
 }

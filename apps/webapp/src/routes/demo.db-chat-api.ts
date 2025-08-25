@@ -45,12 +45,12 @@ export const ServerRoute = createServerFileRoute('/demo/db-chat-api').methods({
     const stream = new ReadableStream({
       start(controller) {
         for (const [_id, message] of serverMessagesCollection.state) {
-          controller.enqueue(JSON.stringify(message) + '\n');
+          controller.enqueue(`${JSON.stringify(message)}\n`);
         }
         serverMessagesCollection.subscribeChanges((changes) => {
           for (const change of changes) {
             if (change.type === 'insert') {
-              controller.enqueue(JSON.stringify(change.value) + '\n');
+              controller.enqueue(`${JSON.stringify(change.value)}\n`);
             }
           }
         });

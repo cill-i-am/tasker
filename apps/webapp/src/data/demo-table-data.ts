@@ -31,11 +31,12 @@ const newPerson = (num: number): Person => {
     age: faker.number.int(MAX_AGE),
     visits: faker.number.int(MAX_VISITS),
     progress: faker.number.int(MAX_PROGRESS),
-    status: faker.helpers.shuffle<Person['status']>([
-      'relationship',
-      'complicated',
-      'single',
-    ])[0] ?? 'single',
+    status:
+      faker.helpers.shuffle<Person['status']>([
+        'relationship',
+        'complicated',
+        'single',
+      ])[0] ?? 'single',
   };
 };
 

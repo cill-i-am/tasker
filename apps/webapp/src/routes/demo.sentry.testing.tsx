@@ -6,8 +6,12 @@
  * @ai_context: Demonstrates Sentry features through interactive examples with educational context
  */
 
-import * as fs from 'node:fs/promises';
-import * as Sentry from '@sentry/tanstackstart-react';
+import { readFile } from 'node:fs/promises';
+import {
+  captureException,
+  setContext,
+  startSpan,
+} from '@sentry/tanstackstart-react';
 import { createFileRoute } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
 import { useEffect, useRef, useState } from 'react';
@@ -20,17 +24,17 @@ export const Route = createFileRoute('/demo/sentry/testing')({
 const badServerFunc = createServerFn({
   method: 'GET',
 }).handler(async () => {
-  return await Sentry.startSpan(
+  return await startSpan(
     {
       name: 'Reading non-existent file',
       op: 'file.read',
     },
     async () => {
       try {
-        await fs.readFile('./doesnt-exist', 'utf-8');
+        await readFile('./doesnt-exist', 'utf-8');
         return true;
       } catch (error) {
-        Sentry.captureException(error);
+        captureException(error);
         throw error;
       }
     }
@@ -41,27 +45,31 @@ const badServerFunc = createServerFn({
 const goodServerFunc = createServerFn({
   method: 'GET',
 }).handler(async () => {
-  return await Sentry.startSpan(
+  return await startSpan(
     {
       name: 'Successful server operation',
       op: 'demo.success',
     },
     async () => {
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      const SERVER_DELAY_MS = 500;
+      await new Promise((resolve) => setTimeout(resolve, SERVER_DELAY_MS));
       return { success: true };
     }
   );
 });
 
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Demo file; will be removed later
 function RouteComponent() {
   const [isLoading, setIsLoading] = useState<Record<string, boolean>>({});
   const [hasError, setHasError] = useState<Record<string, boolean>>({});
   const [showTrace, setShowTrace] = useState<Record<string, boolean>>({});
   const [spanOps, setSpanOps] = useState<Record<string, string>>({});
   const [demoStep, setDemoStep] = useState(0);
-  const [replayEvents, setReplayEvents] = useState<string[]>([]);
+  const [_replayEvents, setReplayEvents] = useState<string[]>([]);
   const [copiedSpan, setCopiedSpan] = useState<string | null>(null);
   const startTimeRef = useRef<string>('');
+
+  const MS_PER_SECOND = 1000;
 
   useEffect(() => {
     // Set initial timestamp only once on client
@@ -71,8 +79,8 @@ function RouteComponent() {
 
     if (demoStep > 0) {
       const secondsElapsed = (
-        (new Date().getTime() - new Date(startTimeRef.current).getTime()) /
-        1000
+        (Date.now() - new Date(startTimeRef.current).getTime()) /
+        MS_PER_SECOND
       ).toFixed(1);
       setReplayEvents((prev) => [
         ...prev,
@@ -84,7 +92,8 @@ function RouteComponent() {
   const handleCopy = (operation: string) => {
     navigator.clipboard.writeText(operation);
     setCopiedSpan(operation);
-    setTimeout(() => setCopiedSpan(null), 2000);
+    const COPIED_TOAST_MS = 2000;
+    setTimeout(() => setCopiedSpan(null), COPIED_TOAST_MS);
   };
 
   const handleClientError = async () => {
@@ -93,13 +102,13 @@ function RouteComponent() {
     setShowTrace((prev) => ({ ...prev, clientError: true }));
 
     try {
-      await Sentry.startSpan(
+      await startSpan(
         {
           name: 'Client Error Flow Demo',
           op: 'demo.client-error-flow',
         },
-        async () => {
-          Sentry.setContext('demo', {
+        () => {
+          setContext('demo', {
             feature: 'client-error-demo',
             triggered_at: new Date().toISOString(),
           });
@@ -114,7 +123,7 @@ function RouteComponent() {
         ...prev,
         clientError: 'demo.client-error-flow',
       }));
-      Sentry.captureException(error);
+      captureException(error);
     } finally {
       setIsLoading((prev) => ({ ...prev, clientError: false }));
     }
@@ -126,13 +135,13 @@ function RouteComponent() {
     setShowTrace((prev) => ({ ...prev, serverError: true }));
 
     try {
-      await Sentry.startSpan(
+      await startSpan(
         {
           name: 'Server Error Flow Demo',
           op: 'demo.server-error-flow',
         },
         async () => {
-          Sentry.setContext('demo', {
+          setContext('demo', {
             feature: 'server-error-demo',
             triggered_at: new Date().toISOString(),
           });
@@ -146,7 +155,7 @@ function RouteComponent() {
         ...prev,
         serverError: 'demo.server-error-flow',
       }));
-      Sentry.captureException(error);
+      captureException(error);
     } finally {
       setIsLoading((prev) => ({ ...prev, serverError: false }));
     }
@@ -156,14 +165,17 @@ function RouteComponent() {
     setIsLoading((prev) => ({ ...prev, client: true }));
     setShowTrace((prev) => ({ ...prev, client: true }));
 
-    await Sentry.startSpan(
+    await startSpan(
       {
         name: 'Client Operation',
         op: 'demo.client',
       },
       async () => {
         // Simulate some client-side work
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+        const CLIENT_TRACE_DELAY_MS = 1000;
+        await new Promise((resolve) =>
+          setTimeout(resolve, CLIENT_TRACE_DELAY_MS)
+        );
       }
     );
 
@@ -176,7 +188,7 @@ function RouteComponent() {
     setShowTrace((prev) => ({ ...prev, server: true }));
 
     try {
-      await Sentry.startSpan(
+      await startSpan(
         {
           name: 'Server Operation',
           op: 'demo.server',
@@ -193,9 +205,7 @@ function RouteComponent() {
 
   return (
     <>
-      <style
-        dangerouslySetInnerHTML={{
-          __html: `
+      <style>{`
           @keyframes fadeOut {
             from { opacity: 1; transform: translateY(0); }
             to { opacity: 0; transform: translateY(-10px); }
@@ -203,9 +213,7 @@ function RouteComponent() {
           .animate-fade-out {
             animation: fadeOut 2s ease-out forwards;
           }
-        `,
-        }}
-      />
+        `}</style>
       <div
         className="min-h-[calc(100vh-32px)] p-8 text-white"
         style={{
