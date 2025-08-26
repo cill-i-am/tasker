@@ -13,7 +13,6 @@ const config = defineConfig({
     }),
     tailwindcss(),
     tanstackStart({
-      target: 'vercel',
       customViteReactPlugin: true,
     }),
     viteReact(),
